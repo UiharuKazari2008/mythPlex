@@ -9,6 +9,8 @@ Tested on MythBuntu 14.04, Python 2.7.6, and PMS 0.9.9.12.
 
 Note that this script requires local access to recordings.  The drives holding the recordings must either be attached to the system or available via a network share.
 
+NOTE: My version will use Airdate as failback 2 so that Plex can directly understand the episode (like reruns). 
+
 Instructions
 ============
 
