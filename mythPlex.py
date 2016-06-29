@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 def main():
     start_time = time.time()
-    print("mythPlex, Copyright (C) 2014 Andrew Scagnelli")
+    print("mythPlex, Copyright (C) 2016 Andrew Scagnelli and Yukimi Kazari")
     print("mythPlex comes with ABSOLUTELY NO WARRANTY.")
     print("This is free software, and you are welcome to redistribute it")
     print("under certain conditions.")
@@ -54,6 +54,8 @@ def main():
         ep_file_name = program.find('FileName').text
         ep_id = program.find('ProgramId').text
         ep_temp = program.find('StartTime').text
+		# Get AirDate from Myth
+        ep_air_time = program.find('Airdate').text
         ep_start_time = utc_to_local(datetime.strptime(
                                      ep_temp,
                                      '%Y-%m-%dT%H:%M:%SZ'))
@@ -76,16 +78,24 @@ def main():
 
         # Handle specials, movies, etc.
         if ep_season == '00' and ep_num == '00':
-            if (ep_start_time is not None):
-                logger.info("(fallback 2) using start time")
-                episode_name = title + " - " + ep_start_time
+            # NEW! Use airdate NOT start date. Allows direct import into Plex
+			if (ep_air_time is not None):
+                logger.info("(fallback 2) using airdate")
+                episode_name = title + " - " + ep_air_time
                 logger.info("Changed to %s", episode_name)
                 link_path = os.path.expanduser(config.plex_specials_directory +
+                        title + separator + episode_name +
+                        ep_file_extension)
+            else:
+                if (ep_start_time is not None):
+                   logger.info("(fallback 3) using start time")
+                   episode_name = title + " - " + ep_start_time
+                   logger.info("Changed to %s", episode_name)
+                   link_path = os.path.expanduser(config.plex_specials_directory +
                              title + separator + episode_name +
                              ep_file_extension)
-            else:
-                logger.warning("No start time available")
-
+                else:
+                    logger.warning("No start time available")
         else:
             logger.info("Have season and episode.")
             link_path = os.path.expanduser(config.plex_tv_directory +
