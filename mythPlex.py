@@ -45,138 +45,146 @@ def main():
 
     for program in root.iter('Program'):
 
-        start_episode_time = time.time()
-        title = program.find('Title').text
-        ep_title = program.find('SubTitle').text
-        ep_season = program.find('Season').text.zfill(2)
-        ep_num = program.find('Episode').text.zfill(2)
-        ep_file_extension = program.find('FileName').text[-4:]
-        ep_file_name = program.find('FileName').text
-        ep_id = program.find('ProgramId').text
-        ep_temp = program.find('StartTime').text
-		# Get AirDate from Myth
-        ep_air_time = program.find('Airdate').text
-        ep_start_time = utc_to_local(datetime.strptime(
-                                     ep_temp,
-                                     '%Y-%m-%dT%H:%M:%SZ'))
-        # parse start time for file-system safe name
-        ep_start_time = datetime.strftime(ep_start_time, '%Y-%m-%d %H%M')
+        # Get status of recording
+        for recordingstat in program.iter('Recording'):
+            rec_status = recordingstat.find('Status').text
+            if (rec_status == '-3'):
+                start_episode_time = time.time()
+                title = program.find('Title').text
+                ep_title = program.find('SubTitle').text
+                ep_season = program.find('Season').text.zfill(2)
+                ep_num = program.find('Episode').text.zfill(2)
+                ep_file_extension = program.find('FileName').text[-4:]
+                ep_file_name = program.find('FileName').text
+                ep_id = program.find('ProgramId').text
+                ep_temp = program.find('StartTime').text
+                # Get AirDate from Myth
+                ep_air_time = program.find('Airdate').text
 
-        # parse show name for file-system safe name
-        title = re.sub('[\[\]/\\;><&*%=+@!#^()|?]', '_', title)
-        episode_name = title + " - S" + ep_season + "E" + ep_num
+                ep_start_time = utc_to_local(datetime.strptime(
+                                             ep_temp,
+                                             '%Y-%m-%dT%H:%M:%SZ'))
+                # parse start time for file-system safe name
+                ep_start_time = datetime.strftime(ep_start_time, '%Y-%m-%d %H%M')
 
-        if (ep_title is not None):
-            ep_title = re.sub('[\[\]/\\;><&*%=+@!#^()|?]', '_', ep_title)
-            episode_name = episode_name + " - " + ep_title
+                # parse show name for file-system safe name
+                title = re.sub('[\[\]/\\;><&*%=+@!#^()|?]', '_', title)
+                episode_name = title + " - S" + ep_season + "E" + ep_num
 
-        # Skip previously finished files
-        if ep_id in lib:
-            logger.debug("Matched ID %s, (filename %s)", ep_id, ep_file_name)
-            logger.info("Skipping finished episode %s", episode_name)
-            continue
+                
+                if (ep_title is not None):
+                    ep_title = re.sub('[\[\]/\\;><&*%=+@!#^()|?]', '_', ep_title)
+                    episode_name = episode_name + " - " + ep_title
 
-        # Handle specials, movies, etc.
-        if ep_season == '00' and ep_num == '00':
-            # NEW! Use airdate NOT start date. Allows direct import into Plex
-            if (ep_air_time is not None):
-                logger.info("(fallback 2) using airdate")
-                episode_name = title + " - " + ep_air_time
-                logger.info("Changed to %s", episode_name)
-                link_path = os.path.expanduser(config.plex_specials_directory +
-                        title + separator + episode_name +
-                        ep_file_extension)
-            else:
-                if (ep_start_time is not None):
-                   logger.info("(fallback 3) using start time")
-                   episode_name = title + " - " + ep_start_time
-                   logger.info("Changed to %s", episode_name)
-                   link_path = os.path.expanduser(config.plex_specials_directory +
-                             title + separator + episode_name +
-                             ep_file_extension)
-                else:
-                    logger.warning("No start time available")
-        else:
-            logger.info("Have season and episode.")
-            link_path = os.path.expanduser(config.plex_tv_directory +
-                         title + separator + episode_name + ep_file_extension)
-
-        # Watch for oprhaned recordings!
-        source_dir = None
-        for myth_dir in config.dirs[:]:
-            source_path = myth_dir + ep_file_name
-            if os.path.isfile(source_path):
-                source_dir = myth_dir
-                break
-
-        if source_dir is None:
-            logger.error("Cannot create symlink for %s, no valid source dir.",
-                         episode_name)
-            logger.info("Episode processing took %ss",
-                        format(time.time() - start_episode_time, '.5f'))
-            continue
-
-        if os.path.exists(link_path) or os.path.islink(link_path):
-            logger.warning("Symlink %s already exists, skipping.", link_path)
-            logger.info("Episode processing took %ss",
-                        format(time.time() - start_episode_time, '.5f'))
-            continue
-
-        if config.permission:
-            try:
-                open(source_path)
-            except (IOError, OSError) as e:
-                if e.errno == EACCES:
-                    logger.error("Could not open recording %s", episode_name)
-                    logger.error("It will be checked again next run.")
+                # Skip previously finished files
+                if ep_id in lib:
+                    logger.debug("Matched ID %s, (filename %s)", ep_id, ep_file_name)
+                    logger.info("Skipping finished episode %s", episode_name)
                     continue
 
-        if (config.plex_tv_directory in link_path):
-            if (not os.path.exists(config.plex_tv_directory + title)):
-                logger.info("Show folder does not exist, creating.")
-                os.makedirs(config.plex_tv_directory + title)
-                os.system('chown plex:plex \"' + 
-                          config.plex_tv_directory + title + '\"')
+                # Handle specials, movies, etc.
+                if ep_season == '00' and ep_num == '00':
+                    # NEW! Use airdate NOT start date. Allows direct import into Plex
+                    if (ep_air_time is not None):
+                        logger.info("(fallback 2) using airdate")
+                        episode_name = title + " - " + ep_air_time
+                        logger.info("Changed to %s", episode_name)
+                        link_path = os.path.expanduser(config.plex_specials_directory +
+                                title + separator + episode_name +
+                                ep_file_extension)
+                    else:
+                        if (ep_start_time is not None):
+                           logger.info("(fallback 3) using start time")
+                           episode_name = title + " - " + ep_start_time
+                           logger.info("Changed to %s", episode_name)
+                           link_path = os.path.expanduser(config.plex_specials_directory +
+                                     title + separator + episode_name +
+                                     ep_file_extension)
+                        else:
+                            logger.warning("No start time available")
+                else:
+                    logger.info("Have season and episode.")
+                    link_path = os.path.expanduser(config.plex_tv_directory +
+                                 title + separator + episode_name + ep_file_extension)
 
-        if (config.plex_movie_directory in link_path):
-            if (not os.path.exists(config.plex_movie_directory + title)):
-                logger.info("Show folder does not exist, creating.")
-                os.makedirs(config.plex_movie_directory + title)
-                os.system('chown plex:plex \"' + 
-                          config.plex_movie_directory + title + '\"')
+                # Watch for oprhaned recordings!
+                source_dir = None
+                for myth_dir in config.dirs[:]:
+                    source_path = myth_dir + ep_file_name
+                    if os.path.isfile(source_path):
+                        source_dir = myth_dir
+                        break
 
-        if (config.plex_specials_directory in link_path):
-            if (not os.path.exists(config.plex_specials_directory + title)):
-                logger.info("Show folder does not exist, creating.")
-                os.makedirs(config.plex_specials_directory + title)
-                os.system('chown plex:plex \"' + 
-                          config.plex_specials_directory + title + '\"')
+                if source_dir is None:
+                    logger.error("Cannot create symlink for %s, no valid source dir.",
+                                 episode_name)
+                    logger.info("Episode processing took %ss",
+                                format(time.time() - start_episode_time, '.5f'))
+                    continue
 
-        logger.info("Processing %s (path %s)", episode_name, source_path)
+                if os.path.exists(link_path) or os.path.islink(link_path):
+                    logger.warning("Symlink %s already exists, skipping.", link_path)
+                    logger.info("Episode processing took %ss",
+                                format(time.time() - start_episode_time, '.5f'))
+                    continue
 
-        # avconv (next-gen ffmpeg) support -- convert files to MP4
-        # so smaller devices (eg Roku, AppleTV, FireTV, Chromecast)
-        # support native playback.
-        if config.transcode_enabled is True:
-            # Re-encode with avconv
-            run_avconv(source_path, link_path)
+                if config.permission:
+                    try:
+                        open(source_path)
+                    except (IOError, OSError) as e:
+                        if e.errno == EACCES:
+                            logger.error("Could not open recording %s", episode_name)
+                            logger.error("It will be checked again next run.")
+                            continue
 
-        elif config.remux_enabled:
-            run_avconv_remux(source_path, link_path)
+                if (config.plex_tv_directory in link_path):
+                    if (not os.path.exists(config.plex_tv_directory + title)):
+                        logger.info("Show folder does not exist, creating.")
+                        os.makedirs(config.plex_tv_directory + title)
+                        os.system('chown plex:plex \"' + 
+                                  config.plex_tv_directory + title + '\"')
 
-        else:
-            logger.info("Linking %s to %s", source_path, link_path)
-            os.symlink(source_path, link_path)
+                if (config.plex_movie_directory in link_path):
+                    if (not os.path.exists(config.plex_movie_directory + title)):
+                        logger.info("Show folder does not exist, creating.")
+                        os.makedirs(config.plex_movie_directory + title)
+                        os.system('chown plex:plex \"' + 
+                                  config.plex_movie_directory + title + '\"')
 
-        # Changing to plex ownership
-        os.system("chown plex:plex \"" + link_path + "\"")
+                if (config.plex_specials_directory in link_path):
+                    if (not os.path.exists(config.plex_specials_directory + title)):
+                        logger.info("Show folder does not exist, creating.")
+                        os.makedirs(config.plex_specials_directory + title)
+                        os.system('chown plex:plex \"' + 
+                                  config.plex_specials_directory + title + '\"')
 
-        logger.info("Episode processing took %s",
-                    format(time.time() - start_episode_time, '.5f'))
+                logger.info("Processing %s (path %s)", episode_name, source_path)
 
-        if ep_id is not None:
-            logger.info("Adding %s to library [%s]", episode_name, ep_id)
-            lib.append(ep_id)
+                # avconv (next-gen ffmpeg) support -- convert files to MP4
+                # so smaller devices (eg Roku, AppleTV, FireTV, Chromecast)
+                # support native playback.
+                if config.transcode_enabled is True:
+                    # Re-encode with avconv
+                    run_avconv(source_path, link_path)
+
+                elif config.remux_enabled:
+                    run_avconv_remux(source_path, link_path)
+
+                else:
+                    logger.info("Linking %s to %s", source_path, link_path)
+                    os.symlink(source_path, link_path)
+
+                # Changing to plex ownership
+                os.system("chown plex:plex \"" + link_path + "\"")
+
+                logger.info("Episode processing took %s",
+                            format(time.time() - start_episode_time, '.5f'))
+
+                if ep_id is not None:
+                    logger.info("Adding %s to library [%s]", episode_name, ep_id)
+                    lib.append(ep_id)
+            if (rec_status == '-2' ):
+                logger.info("Skiping %s becuase it's still recordng [%s]", episode_name, ep_id)
     close_library(lib)
     logger.info("Finished processing in %s",
                 format(time.time() - start_time, '.5f'))
