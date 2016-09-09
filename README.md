@@ -1,6 +1,10 @@
 mythPlex
 ========
 
+NO LONGER USING GITHUB!! USE ACR CODE!!!!
+======
+[mythPlex LTS @ ACR Code](https://code.acr.moe/kazari/mythPlex)
+
 Convert MythTV recordings to XBMC/Plex compatible names using the built-in MythTV APIs
 
 This uses the built-in [MythTV Services API](http://www.mythtv.org/wiki/Services_API) to create symlinks from the Myth recordings to XBMC/Plex-friendly formats.
